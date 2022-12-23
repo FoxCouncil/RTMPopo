@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+
+    <title>RetroFox TV Viewer Stats</title>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" integrity="sha256-kLaT2GOSpHechhsozzB+flnD+zUyjE2LlfWPgU04xyI=" crossorigin="">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootswatch/5.2.3/darkly/bootstrap.min.css" integrity="sha512-YRcmztDXzJQCCBk2YUiEAY+r74gu/c9UULMPTeLsAp/Tw5eXiGkYMPC4tc4Kp1jx/V9xjEOCVpBe4r6Lx6n5dA==" crossorigin="anonymous" referrerpolicy="no-referrer">
+
+    <style>
+        #map { width: 100%; height: 100%; }
+        .eye-icon { font-size: 48px; line-height: 6px; }
+        .leaflet-tile-container img { will-change: transform; outline: 1px solid transparent; }
+    </style>
+</head>
+
+<body class="vh-100 d-flex flex-column">
+
+    <header class="navbar navbar-dark sticky-top bg-dark flex-md-nowrap p-0 shadow">
+        <a class="navbar-brand col-md-2 col-lg-1 me-0 px-3 fs-6" href="#">RetroFox TV Stats</a>
+        <button class="navbar-toggler position-absolute d-md-none collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu" aria-controls="sidebarMenu" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <input class="form-control form-control-dark w-100 rounded-0 border-0" type="text" placeholder="Search" aria-label="Search" disabled>
+        <div class="navbar-nav">
+            <div class="nav-item text-nowrap">
+                <a class="nav-link px-3" href="https://foxcouncil.com/live/retrotv.html" target="_blank">Watch</a>
+            </div>
+        </div>
+    </header>
+
+    <div class="container-fluid d-flex flex-column flex-grow-1">
+        <div class="row flex-grow-1">
+            <nav id="sidebarMenu" class="col-md-2 col-lg-1 d-md-block sidebar collapse">
+                <div class="position-sticky pt-3 sidebar-sticky">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link active" aria-current="page" href="#">Viewers</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#">IPv6 GeoIP Cache</a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+
+            <main class="d-flex flex-column col-md-10 ms-sm-auto col-lg-11 px-md-4">
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                    <h1 class="h2"><span id="viewercount">0</span> Viewer(s)</h1>
+                    <div class="btn-toolbar mb-2 mb-md-0">
+                        <div class="btn-group me-2">
+                            <button type="button" class="btn btn-sm btn-outline-secondary">Share</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary">Export</button>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle">Live</button>
+                    </div>
+                </div>
+                <div class="d-flex flex-column flex-grow-1">
+                    <div class="flex-grow-1 d-table" id="map"></div>
+                    <div class="table-responsive">
+                        <table class="table table-striped mt-2 table-sm">
+                            <thead>
+                                <tr>
+                                    <th scope="col">IP Address</th>
+                                    <th scope="col">City</th>
+                                    <th scope="col">Country</th>
+                                    <th scope="col">User Agent</th>
+                                </tr>
+                            </thead>
+                            <tbody id="viewerdata"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js" integrity="sha256-WBkoXOwTeyKclOHuWtc+i2uENFpDZ9YPdf5Hf+D7ewM=" crossorigin=""></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-kenU1KFdBIe4zVF0s0G1M5b4hcpxyD9F7jL+jjXkk+Q2h455rYXK/7HAuoJl+0I4" crossorigin="anonymous"></script>
+    <script type="text/javascript">
+        (function(){
+            var originalInitTile = L.GridLayer.prototype._initTile
+            L.GridLayer.include({
+                _initTile: function (tile) {
+                    originalInitTile.call(this, tile);
+
+                    var tileSize = this.getTileSize();
+
+                    tile.style.width = tileSize.x + 0.5 + 'px';
+                    tile.style.height = tileSize.y + 0.5 + 'px';
+                }
+            });
+        })();
+        var eyeIcon = L.divIcon({className: 'eye-icon', html: '👀'});
+        var map = L.map('map', { maxZoom: 12, zoomControl: false, dragging: false, keyboard: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false }).setView([49.246292, -123.116226], 7);
+        // L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        //     maxZoom: 19,
+        //     attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        // })
+
+        // L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        //     attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+        // })
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+            subdomains: 'abcd',
+            maxZoom: 12
+        }).addTo(map);
+        var markers = L.featureGroup().addTo(map);
+        const viewerdata = document.getElementById('viewerdata');
+        function updateUI() {
+            fetch('/stats').then((response) => response.json()).then((data) => {
+                removeAllChildNodes(viewerdata);
+                markers.clearLayers();
+                document.getElementById('viewercount').innerText = data.length;
+                data.forEach((viewer, idx) => {
+                    let newTrEl = document.createElement('tr');
+
+                    let ipTdEl = document.createElement('td');
+                    ipTdEl.innerText = viewer.ip;
+                    newTrEl.appendChild(ipTdEl);
+
+                    let cityTdEl = document.createElement('td');
+                    cityTdEl.innerText = viewer.city;
+                    newTrEl.appendChild(cityTdEl);
+
+                    let countryTdEl = document.createElement('td');
+                    countryTdEl.innerText = viewer.country;
+                    newTrEl.appendChild(countryTdEl);
+
+                    let uaTdEl = document.createElement('td');
+                    uaTdEl.innerText = viewer.ua
+                    newTrEl.appendChild(uaTdEl);
+
+                    viewerdata.appendChild(newTrEl);
+
+                    var llData = viewer.ll.split(',');
+                    var marker = L.marker([llData[0], llData[1]], { icon: eyeIcon });
+
+                    markers.addLayer(marker);
+
+                    if (idx == data.length - 1) {
+                        map.fitBounds(markers.getBounds());
+                    }
+                });
+            });
+        }
+        function removeAllChildNodes(parent) {
+            while (parent.firstChild) {
+                parent.removeChild(parent.firstChild);
+            }
+        }
+        updateUI();
+        setInterval(updateUI, 3000);
+    </script>
+</body>
+
+</html>
